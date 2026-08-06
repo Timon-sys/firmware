@@ -30,6 +30,13 @@
 #ifndef NEOPIXEL_STATUS_PAIRING_COLOR
 #define NEOPIXEL_STATUS_PAIRING_COLOR 0x0000FF // blue
 #endif
+// LoRa activity colours flashed on the power pixel: TX blue, RX pink.
+#ifndef NEOPIXEL_STATUS_LORA_TX_COLOR
+#define NEOPIXEL_STATUS_LORA_TX_COLOR 0x000040 // blue @ 25%
+#endif
+#ifndef NEOPIXEL_STATUS_LORA_RX_COLOR
+#define NEOPIXEL_STATUS_LORA_RX_COLOR 0x400020 // pink @ 25%
+#endif
 #endif
 
 class StatusLEDModule : private concurrency::OSThread
@@ -43,8 +50,9 @@ class StatusLEDModule : private concurrency::OSThread
 #if !MESHTASTIC_EXCLUDE_INPUTBROKER
     int handleInputEvent(const InputEvent *arg);
 #endif
-#ifdef LED_LORA
+#if defined(LED_LORA) || defined(NEOPIXEL_STATUS_POWER_PIN)
     int handleLoRaRx(uint32_t sender);
+    int handleLoRaTx(uint32_t dest);
 #endif
 
     void setPowerLED(bool);
@@ -68,9 +76,11 @@ class StatusLEDModule : private concurrency::OSThread
     CallbackObserver<StatusLEDModule, const InputEvent *> inputObserver =
         CallbackObserver<StatusLEDModule, const InputEvent *>(this, &StatusLEDModule::handleInputEvent);
 #endif
-#ifdef LED_LORA
+#if defined(LED_LORA) || defined(NEOPIXEL_STATUS_POWER_PIN)
     CallbackObserver<StatusLEDModule, uint32_t> loraRxObserver =
         CallbackObserver<StatusLEDModule, uint32_t>(this, &StatusLEDModule::handleLoRaRx);
+    CallbackObserver<StatusLEDModule, uint32_t> loraTxObserver =
+        CallbackObserver<StatusLEDModule, uint32_t>(this, &StatusLEDModule::handleLoRaTx);
 #endif
 
   private:
@@ -88,6 +98,12 @@ class StatusLEDModule : private concurrency::OSThread
     static constexpr uint32_t LORA_RX_LED_FLASH_MS = 100;
     bool LORA_LED_state = LED_STATE_OFF;
     uint32_t LORA_LED_starttime = 0;
+#endif
+#ifdef NEOPIXEL_STATUS_POWER_PIN
+    // Brief RF activity flash that overrides the heartbeat colour on the power pixel.
+    static constexpr uint32_t RF_PIXEL_FLASH_MS = 120;
+    uint32_t RF_pixel_color = 0; // 0 = no flash in progress
+    uint32_t RF_pixel_starttime = 0;
 #endif
 
     enum PowerState { discharging, charging, charged, critical };

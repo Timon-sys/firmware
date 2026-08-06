@@ -33,12 +33,28 @@ L76K GPS Module Information : https://www.seeedstudio.com/L76K-GNSS-Module-for-S
 #define LED_POWER 48
 #define LED_STATE_ON 1 // State when LED is lit
 
+// Optional external WS2812B status pixel on D1 (GPIO2), mirroring LED_POWER:
+// 1s heartbeat, blink while charging, solid when charged, fast blink on
+// critical battery. Driven as a 1-pixel strand by StatusLEDModule.
+#define NEOPIXEL_STATUS_POWER_PIN 2
+// Very dim green for the idle heartbeat: "all is well" should not look like a fault.
+// Kept far below the 50% RX green so the two are easy to tell apart.
+#define NEOPIXEL_STATUS_POWER_COLOR 0x000A00 // green @ ~4% brightness
+// LoRa activity flashes at 50% so they stand out against the dimmer heartbeat.
+// Radio convention: amber = we are transmitting, green = we heard someone.
+#define NEOPIXEL_STATUS_LORA_TX_COLOR 0x803000 // amber @ 50%
+#define NEOPIXEL_STATUS_LORA_RX_COLOR 0x008000 // green @ 50%
+
 #define BUTTON_PIN 21 // This is the Program Button
 #define BUTTON_NEED_PULLUP
 
-#define BATTERY_PIN -1
-#define ADC_CHANNEL ADC_CHANNEL_0
-#define BATTERY_SENSE_RESOLUTION_BITS 12
+// This board has no battery sense hardware. BATTERY_PIN must be left *undefined*
+// rather than set to a -1 sentinel: PowerStatus.h keys off defined(BATTERY_PIN),
+// so defining it selects the "0% when no battery" branch, which StatusLEDModule
+// reads as a critical battery and answers with its 30s fast-blink alarm.
+// #define BATTERY_PIN -1
+// #define ADC_CHANNEL ADC_CHANNEL_0
+// #define BATTERY_SENSE_RESOLUTION_BITS 12
 
 /*Warning:
     https://www.seeedstudio.com/L76K-GNSS-Module-for-Seeed-Studio-XIAO-p-5864.html

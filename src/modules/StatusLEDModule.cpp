@@ -18,8 +18,9 @@ StatusLEDModule::StatusLEDModule() : concurrency::OSThread("StatusLEDModule")
     if (inputBroker)
         inputObserver.observe(inputBroker);
 #endif
-#ifdef LED_LORA
+#if defined(LED_LORA) || defined(NEOPIXEL_STATUS_POWER_PIN)
     loraRxObserver.observe(&RadioInterface::loraRxPacketObservable);
+    loraTxObserver.observe(&RadioInterface::loraTxPacketObservable);
 #endif
 #ifdef NEOPIXEL_STATUS_POWER_PIN
     powerPixel.begin();
@@ -94,15 +95,36 @@ int StatusLEDModule::handleInputEvent(const InputEvent *event)
     return 0;
 }
 #endif
-#ifdef LED_LORA
+#if defined(LED_LORA) || defined(NEOPIXEL_STATUS_POWER_PIN)
 int StatusLEDModule::handleLoRaRx(uint32_t)
 {
     // Briefly flash LED_LORA on each received packet. Turn it on now (we share the main thread with
     // the radio's receive handler, so this is safe) and wake runOnce() at flash end to turn it off.
+#ifdef LED_LORA
     digitalWrite(LED_LORA, LED_STATE_ON);
     LORA_LED_state = LED_STATE_ON;
     LORA_LED_starttime = millis();
     setIntervalFromNow(LORA_RX_LED_FLASH_MS);
+#endif
+#ifdef NEOPIXEL_STATUS_POWER_PIN
+    // Pink flash on the status pixel: we heard something over RF.
+    RF_pixel_color = NEOPIXEL_STATUS_LORA_RX_COLOR;
+    RF_pixel_starttime = millis();
+    writeStatusPixel(powerPixel, RF_pixel_color, true);
+    setIntervalFromNow(RF_PIXEL_FLASH_MS);
+#endif
+    return 0;
+}
+
+int StatusLEDModule::handleLoRaTx(uint32_t)
+{
+#ifdef NEOPIXEL_STATUS_POWER_PIN
+    // Blue flash on the status pixel: we are transmitting.
+    RF_pixel_color = NEOPIXEL_STATUS_LORA_TX_COLOR;
+    RF_pixel_starttime = millis();
+    writeStatusPixel(powerPixel, RF_pixel_color, true);
+    setIntervalFromNow(RF_PIXEL_FLASH_MS);
+#endif
     return 0;
 }
 #endif
@@ -238,7 +260,21 @@ int32_t StatusLEDModule::runOnce()
     digitalWrite(LED_PAIRING, PAIRING_LED_state);
 #endif
 #ifdef NEOPIXEL_STATUS_POWER_PIN
-    writeStatusPixel(powerPixel, NEOPIXEL_STATUS_POWER_COLOR, CHARGE_LED_state == LED_STATE_ON);
+    // An in-progress RF flash (TX blue / RX pink) wins over the heartbeat colour. Come back
+    // exactly at flash end so we restore the heartbeat promptly (only ever clamp my_interval down).
+    if (RF_pixel_color) {
+        uint32_t rfElapsed = millis() - RF_pixel_starttime;
+        if (rfElapsed >= RF_PIXEL_FLASH_MS) {
+            RF_pixel_color = 0;
+        } else if ((uint32_t)my_interval > RF_PIXEL_FLASH_MS - rfElapsed) {
+            my_interval = RF_PIXEL_FLASH_MS - rfElapsed;
+        }
+    }
+    if (RF_pixel_color) {
+        writeStatusPixel(powerPixel, RF_pixel_color, true);
+    } else {
+        writeStatusPixel(powerPixel, NEOPIXEL_STATUS_POWER_COLOR, CHARGE_LED_state == LED_STATE_ON);
+    }
 #endif
 #ifdef NEOPIXEL_STATUS_PAIRING_PIN
     writeStatusPixel(pairingPixel, NEOPIXEL_STATUS_PAIRING_COLOR, PAIRING_LED_state == LED_STATE_ON);

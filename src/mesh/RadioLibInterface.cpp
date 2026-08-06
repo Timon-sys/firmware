@@ -692,7 +692,7 @@ void RadioLibInterface::handleReceiveInterrupt()
 
             printPacket("Lora RX", mp);
 
-#ifdef LED_LORA
+#if defined(LED_LORA) || defined(NEOPIXEL_STATUS_POWER_PIN)
             loraRxPacketObservable.notifyObservers(mp->from);
 #endif
 
@@ -791,6 +791,9 @@ bool RadioLibInterface::startSend(meshtastic_MeshPacket *txp)
             printPacket("Started Tx", txp);
 #ifdef LED_LORA
             digitalWrite(LED_LORA, LED_STATE_ON);
+#endif
+#if defined(LED_LORA) || defined(NEOPIXEL_STATUS_POWER_PIN)
+            loraTxPacketObservable.notifyObservers(txp->to);
 #endif
         }
 
