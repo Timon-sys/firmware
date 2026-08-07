@@ -1,4 +1,7 @@
 #include "SystemCommandsModule.h"
+#include "Router.h"
+#include "buzz/buzz.h"
+#include "modules/RoutingModule.h"
 #include "input/InputBroker.h"
 #include "meshUtils.h"
 
@@ -103,14 +106,27 @@ int SystemCommandsModule::handleInputEvent(const InputEvent *event)
 #endif
         return true;
     // Mesh ping
-    case INPUT_BROKER_SEND_PING:
-        service->refreshLocalMeshNode();
-        if (service->trySendPosition(NODENUM_BROADCAST, true)) {
-            IF_SCREEN(screen->showSimpleBanner("Position\nSent", 3000));
-        } else {
-            IF_SCREEN(screen->showSimpleBanner("Node Info\nSent", 3000));
+    case INPUT_BROKER_SEND_PING: {
+        // Send a plain text message on the primary channel with want_ack set. Position/NodeInfo
+        // pings only set want_response, which is a request for a reply - not an ACK - so they never
+        // produce the ACK beep. A text packet with want_ack does.
+        meshtastic_MeshPacket *p = router->allocForSending();
+        if (p) {
+            p->to = NODENUM_BROADCAST;
+            p->channel = 0; // primary channel
+            p->want_ack = true;
+            p->decoded.portnum = meshtastic_PortNum_TEXT_MESSAGE_APP;
+            const char *msg = "testack";
+            p->decoded.payload.size = strlen(msg);
+            memcpy(p->decoded.payload.bytes, msg, p->decoded.payload.size);
+            // Arm the ACK beep for this packet only, so chat traffic doesn't trigger it.
+            ackBeepPendingId = p->id;
+            playPingSentBeep(); // medium beep: sent - listen for the high ACK beep that follows
+            service->sendToMesh(p, RX_SRC_LOCAL, true);
+            IF_SCREEN(screen->showSimpleBanner("testack\nSent", 3000));
         }
         return true;
+    }
     // Power control
     case INPUT_BROKER_SHUTDOWN:
         shutdownAtMsec = millis();

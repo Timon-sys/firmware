@@ -97,6 +97,7 @@ const RegionProfile PROFILE_HAM_100KHZ = {PRESETS_NARROW, 0, 0.01875f, false, tr
 
 Observable<uint32_t> RadioInterface::loraRxPacketObservable;
 Observable<uint32_t> RadioInterface::loraTxPacketObservable;
+Observable<uint32_t> RadioInterface::loraTxDoneObservable;
 
 #define RDEF(name, freq_start, freq_end, duty_cycle, power_limit, frequency_switching, wide_lora, profile_ptr, default_preset,   \
              override_slot)                                                                                                      \

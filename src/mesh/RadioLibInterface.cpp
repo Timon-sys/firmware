@@ -582,6 +582,9 @@ void RadioLibInterface::completeSending()
 #ifdef LED_LORA
     digitalWrite(LED_LORA, LED_STATE_OFF);
 #endif
+#ifdef HAS_LORA_ACTIVITY_INDICATOR
+    loraTxDoneObservable.notifyObservers(0);
+#endif
 
     if (p) {
         // Packet has been sent, count it toward our TX airtime utilization.
@@ -692,7 +695,7 @@ void RadioLibInterface::handleReceiveInterrupt()
 
             printPacket("Lora RX", mp);
 
-#if defined(LED_LORA) || defined(NEOPIXEL_STATUS_POWER_PIN)
+#ifdef HAS_LORA_ACTIVITY_INDICATOR
             loraRxPacketObservable.notifyObservers(mp->from);
 #endif
 
@@ -792,7 +795,7 @@ bool RadioLibInterface::startSend(meshtastic_MeshPacket *txp)
 #ifdef LED_LORA
             digitalWrite(LED_LORA, LED_STATE_ON);
 #endif
-#if defined(LED_LORA) || defined(NEOPIXEL_STATUS_POWER_PIN)
+#ifdef HAS_LORA_ACTIVITY_INDICATOR
             loraTxPacketObservable.notifyObservers(txp->to);
 #endif
         }

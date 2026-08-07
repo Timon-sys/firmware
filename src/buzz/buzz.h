@@ -2,6 +2,9 @@
 
 void playBeep();
 void playLongBeep();
+void playPingSentBeep(); // medium: our ping went out
+void playAckBeep();      // high: an ACK came back
+void playAckFailBeep();  // low: no ACK, max retransmissions reached
 void playStartMelody();
 void playShutdownMelody();
 void playGPSEnableBeep();

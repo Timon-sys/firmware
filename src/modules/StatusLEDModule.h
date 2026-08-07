@@ -50,9 +50,10 @@ class StatusLEDModule : private concurrency::OSThread
 #if !MESHTASTIC_EXCLUDE_INPUTBROKER
     int handleInputEvent(const InputEvent *arg);
 #endif
-#if defined(LED_LORA) || defined(NEOPIXEL_STATUS_POWER_PIN)
+#ifdef HAS_LORA_ACTIVITY_INDICATOR
     int handleLoRaRx(uint32_t sender);
     int handleLoRaTx(uint32_t dest);
+    int handleLoRaTxDone(uint32_t);
 #endif
 
     void setPowerLED(bool);
@@ -76,11 +77,13 @@ class StatusLEDModule : private concurrency::OSThread
     CallbackObserver<StatusLEDModule, const InputEvent *> inputObserver =
         CallbackObserver<StatusLEDModule, const InputEvent *>(this, &StatusLEDModule::handleInputEvent);
 #endif
-#if defined(LED_LORA) || defined(NEOPIXEL_STATUS_POWER_PIN)
+#ifdef HAS_LORA_ACTIVITY_INDICATOR
     CallbackObserver<StatusLEDModule, uint32_t> loraRxObserver =
         CallbackObserver<StatusLEDModule, uint32_t>(this, &StatusLEDModule::handleLoRaRx);
     CallbackObserver<StatusLEDModule, uint32_t> loraTxObserver =
         CallbackObserver<StatusLEDModule, uint32_t>(this, &StatusLEDModule::handleLoRaTx);
+    CallbackObserver<StatusLEDModule, uint32_t> loraTxDoneObserver =
+        CallbackObserver<StatusLEDModule, uint32_t>(this, &StatusLEDModule::handleLoRaTxDone);
 #endif
 
   private:
@@ -104,6 +107,22 @@ class StatusLEDModule : private concurrency::OSThread
     static constexpr uint32_t RF_PIXEL_FLASH_MS = 120;
     uint32_t RF_pixel_color = 0; // 0 = no flash in progress
     uint32_t RF_pixel_starttime = 0;
+#endif
+#if defined(LED_LORA_RX) || defined(LED_LORA_TX)
+    // Discrete-GPIO RF activity LEDs. Either pin may be shared with LED_POWER;
+    // the heartbeat simply resumes once the flash expires.
+    static constexpr uint32_t LORA_ACTIVITY_LED_FLASH_MS = 200;
+#endif
+#ifdef LED_LORA_RX
+    bool LORA_RX_LED_active = false;
+    uint32_t LORA_RX_LED_starttime = 0;
+#endif
+#ifdef LED_LORA_TX
+    // TX is edge-driven: lit for the true on-air window (start -> completeSending), not a fixed
+    // duration. The timestamp only backstops a watchdog in case the done event never arrives.
+    bool LORA_TX_LED_active = false;
+    uint32_t LORA_TX_LED_starttime = 0;
+    static constexpr uint32_t LORA_TX_LED_MAX_MS = 5000;
 #endif
 
     enum PowerState { discharging, charging, charged, critical };

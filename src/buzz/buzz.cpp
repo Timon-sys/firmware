@@ -162,6 +162,26 @@ void playBeep()
     playTones(melody, sizeof(melody) / sizeof(ToneDuration));
 }
 
+// Ping/ACK feedback, pitched so the outcome is obvious without looking:
+// medium on send, high on ACK, low on giving up.
+void playPingSentBeep()
+{
+    ToneDuration melody[] = {{NOTE_B4, DURATION_1_8}};
+    playTones(melody, sizeof(melody) / sizeof(ToneDuration));
+}
+
+void playAckBeep()
+{
+    ToneDuration melody[] = {{NOTE_E7, DURATION_1_8}};
+    playTones(melody, sizeof(melody) / sizeof(ToneDuration));
+}
+
+void playAckFailBeep()
+{
+    ToneDuration melody[] = {{NOTE_C3, DURATION_1_4}};
+    playTones(melody, sizeof(melody) / sizeof(ToneDuration));
+}
+
 void playLongBeep()
 {
     ToneDuration melody[] = {{NOTE_B3, DURATION_1_1}};

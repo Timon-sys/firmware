@@ -134,6 +134,10 @@ class RadioInterface
     /// Fires once per LoRa packet transmit start (arg = destination NodeNum). Used e.g. to flash a status LED.
     static Observable<uint32_t> loraTxPacketObservable;
 
+    /// Fires when a transmission finishes (arg unused). Pairs with loraTxPacketObservable so an
+    /// indicator can track the true on-air window rather than guessing at a duration.
+    static Observable<uint32_t> loraTxDoneObservable;
+
     /**
      * Coerce LoRa config fields (bandwidth/spread_factor) derived from presets.
      * This is used during early bootstrapping so UIs that display these fields directly remain consistent.

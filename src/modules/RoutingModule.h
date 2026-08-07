@@ -40,3 +40,8 @@ class RoutingModule : public ProtobufModule<meshtastic_Routing>
 };
 
 extern RoutingModule *routingModule;
+
+/** Packet id of a button-initiated "testack" ping awaiting its outcome, or 0 when we are not
+ * testing. Only ACK/NAK carrying this request_id produces audible feedback, so ordinary chat
+ * traffic stays silent. Set when the ping is sent, cleared on the first matching result. */
+extern PacketId ackBeepPendingId;

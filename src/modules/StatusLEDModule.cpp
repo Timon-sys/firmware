@@ -18,9 +18,18 @@ StatusLEDModule::StatusLEDModule() : concurrency::OSThread("StatusLEDModule")
     if (inputBroker)
         inputObserver.observe(inputBroker);
 #endif
-#if defined(LED_LORA) || defined(NEOPIXEL_STATUS_POWER_PIN)
+#ifdef HAS_LORA_ACTIVITY_INDICATOR
     loraRxObserver.observe(&RadioInterface::loraRxPacketObservable);
     loraTxObserver.observe(&RadioInterface::loraTxPacketObservable);
+    loraTxDoneObserver.observe(&RadioInterface::loraTxDoneObservable);
+#endif
+#ifdef LED_LORA_RX
+    pinMode(LED_LORA_RX, OUTPUT);
+    digitalWrite(LED_LORA_RX, LED_STATE_OFF);
+#endif
+#ifdef LED_LORA_TX
+    pinMode(LED_LORA_TX, OUTPUT);
+    digitalWrite(LED_LORA_TX, LED_STATE_OFF);
 #endif
 #ifdef NEOPIXEL_STATUS_POWER_PIN
     powerPixel.begin();
@@ -95,7 +104,7 @@ int StatusLEDModule::handleInputEvent(const InputEvent *event)
     return 0;
 }
 #endif
-#if defined(LED_LORA) || defined(NEOPIXEL_STATUS_POWER_PIN)
+#ifdef HAS_LORA_ACTIVITY_INDICATOR
 int StatusLEDModule::handleLoRaRx(uint32_t)
 {
     // Briefly flash LED_LORA on each received packet. Turn it on now (we share the main thread with
@@ -113,6 +122,19 @@ int StatusLEDModule::handleLoRaRx(uint32_t)
     writeStatusPixel(powerPixel, RF_pixel_color, true);
     setIntervalFromNow(RF_PIXEL_FLASH_MS);
 #endif
+#ifdef LED_LORA_RX
+    // Never light RX on top of an in-progress TX: the radio is half duplex, so showing both at
+    // once (green + red reading as orange) would misrepresent what the hardware is doing.
+#ifdef LED_LORA_TX
+    if (!LORA_TX_LED_active)
+#endif
+    {
+        digitalWrite(LED_LORA_RX, LED_STATE_ON);
+        LORA_RX_LED_active = true;
+        LORA_RX_LED_starttime = millis();
+        setIntervalFromNow(LORA_ACTIVITY_LED_FLASH_MS);
+    }
+#endif
     return 0;
 }
 
@@ -124,6 +146,34 @@ int StatusLEDModule::handleLoRaTx(uint32_t)
     RF_pixel_starttime = millis();
     writeStatusPixel(powerPixel, RF_pixel_color, true);
     setIntervalFromNow(RF_PIXEL_FLASH_MS);
+#endif
+#ifdef LED_LORA_TX
+    // Light immediately and hold for the real transmission, not a guessed duration.
+    // handleLoRaTxDone() clears it; runOnce() only enforces the stuck-on watchdog.
+    digitalWrite(LED_LORA_TX, LED_STATE_ON);
+    LORA_TX_LED_active = true;
+    LORA_TX_LED_starttime = millis();
+#endif
+    return 0;
+}
+
+int StatusLEDModule::handleLoRaTxDone(uint32_t)
+{
+#ifdef LED_LORA_TX
+    // Clear the moment the radio is off air. Done here rather than in runOnce() because a long
+    // transmission can starve the thread, which would leave the LED lit well past the send.
+    LORA_TX_LED_active = false;
+#ifdef LED_POWER
+    digitalWrite(LED_LORA_TX, LED_LORA_TX == LED_POWER ? CHARGE_LED_state : LED_STATE_OFF);
+#else
+    digitalWrite(LED_LORA_TX, LED_STATE_OFF);
+#endif
+#endif
+#ifdef NEOPIXEL_STATUS_POWER_PIN
+    if (RF_pixel_color == NEOPIXEL_STATUS_LORA_TX_COLOR) {
+        RF_pixel_color = 0;
+        writeStatusPixel(powerPixel, NEOPIXEL_STATUS_POWER_COLOR, CHARGE_LED_state == LED_STATE_ON);
+    }
 #endif
     return 0;
 }
@@ -313,6 +363,44 @@ int32_t StatusLEDModule::runOnce()
             LORA_LED_state = LED_STATE_OFF;
         } else if ((uint32_t)my_interval > LORA_RX_LED_FLASH_MS - elapsed) {
             my_interval = LORA_RX_LED_FLASH_MS - elapsed;
+        }
+    }
+#endif
+
+#ifdef LED_LORA_RX
+    // Discrete RF activity LEDs. LED_LORA_RX / LED_LORA_TX may share a pin with LED_POWER, so
+    // re-assert ON while the flash is live (the heartbeat write above may have cleared it) and
+    // hand the pin back to the heartbeat on expiry. Only ever clamp my_interval down, so we
+    // return exactly at flash end without disturbing other LED timing.
+    if (LORA_RX_LED_active) {
+        uint32_t rxElapsed = millis() - LORA_RX_LED_starttime;
+        if (rxElapsed >= LORA_ACTIVITY_LED_FLASH_MS) {
+            LORA_RX_LED_active = false;
+#ifdef LED_POWER
+            digitalWrite(LED_LORA_RX, LED_LORA_RX == LED_POWER ? CHARGE_LED_state : LED_STATE_OFF);
+#else
+            digitalWrite(LED_LORA_RX, LED_STATE_OFF);
+#endif
+        } else {
+            digitalWrite(LED_LORA_RX, LED_STATE_ON);
+            if ((uint32_t)my_interval > LORA_ACTIVITY_LED_FLASH_MS - rxElapsed)
+                my_interval = LORA_ACTIVITY_LED_FLASH_MS - rxElapsed;
+        }
+    }
+#endif
+#ifdef LED_LORA_TX
+    // TX is cleared by handleLoRaTxDone(). This is only a watchdog: if a send never completes
+    // (radio error, dropped interrupt) don't strand the LED on forever.
+    if (LORA_TX_LED_active) {
+        if (millis() - LORA_TX_LED_starttime >= LORA_TX_LED_MAX_MS) {
+            LORA_TX_LED_active = false;
+#ifdef LED_POWER
+            digitalWrite(LED_LORA_TX, LED_LORA_TX == LED_POWER ? CHARGE_LED_state : LED_STATE_OFF);
+#else
+            digitalWrite(LED_LORA_TX, LED_STATE_OFF);
+#endif
+        } else {
+            digitalWrite(LED_LORA_TX, LED_STATE_ON);
         }
     }
 #endif

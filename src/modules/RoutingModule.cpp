@@ -1,5 +1,6 @@
 #include "RoutingModule.h"
 #include "Default.h"
+#include "buzz/buzz.h"
 #include "MeshService.h"
 #include "NodeDB.h"
 #include "Router.h"
@@ -7,6 +8,8 @@
 #include "main.h"
 
 RoutingModule *routingModule;
+
+PacketId ackBeepPendingId = 0;
 
 bool RoutingModule::handleReceivedProtobuf(const meshtastic_MeshPacket &mp, meshtastic_Routing *r)
 {
@@ -29,6 +32,19 @@ bool RoutingModule::handleReceivedProtobuf(const meshtastic_MeshPacket &mp, mesh
 
     printPacket("Routing sniffing", &mp);
     router->sniffReceived(&mp, r);
+
+    // Audible outcome for a button-initiated ACK test only: high beep on ACK, low beep when the
+    // router gives up. Matching on request_id keeps ordinary chat ACKs silent.
+    if (ackBeepPendingId && isToUs(&mp) && r && mp.which_payload_variant == meshtastic_MeshPacket_decoded_tag &&
+        mp.decoded.request_id == ackBeepPendingId) {
+        if (r->error_reason == meshtastic_Routing_Error_NONE) {
+            playAckBeep();
+            ackBeepPendingId = 0;
+        } else if (r->error_reason == meshtastic_Routing_Error_MAX_RETRANSMIT) {
+            playAckFailBeep();
+            ackBeepPendingId = 0;
+        }
+    }
 
     // FIXME - move this to a non promsicious PhoneAPI module?
     // Note: we are careful not to send back packets that started with the phone back to the phone

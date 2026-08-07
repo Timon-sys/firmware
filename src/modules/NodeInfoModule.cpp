@@ -158,19 +158,11 @@ meshtastic_MeshPacket *NodeInfoModule::allocReply()
         return NULL;
     }
 
-    // Use graduated scaling based on active mesh size (10 minute base, scales with congestion coefficient)
-    uint32_t timeoutMs = Default::getConfiguredOrDefaultMsScaled(0, 10 * 60, nodeStatus->getNumOnline());
-    uint32_t lastNodeInfo = transmitHistory ? transmitHistory->getLastSentToMeshMillis(meshtastic_PortNum_NODEINFO_APP) : 0;
-    if (!shorterTimeout && lastNodeInfo && Throttle::isWithinTimespanMs(lastNodeInfo, timeoutMs)) {
-        LOG_DEBUG("Skip send NodeInfo since we sent it <%us ago", timeoutMs / 1000);
-        ignoreRequest = true; // Mark it as ignored for MeshModule
-        return NULL;
-    } else if (shorterTimeout && lastNodeInfo && Throttle::isWithinTimespanMs(lastNodeInfo, 60 * 1000)) {
-        // For interactive/urgent requests (e.g., user-triggered or implicit requests), use a shorter 60s timeout
-        LOG_DEBUG("Skip send NodeInfo since we sent it <60s ago");
-        ignoreRequest = true;
-        return NULL;
-    } else {
+    // LOCAL MODIFICATION: the 10-minute / 60-second NodeInfo resend throttles have been removed so a
+    // button ping always goes out immediately. Upstream rate limits this to protect mesh airtime;
+    // without it, repeated pings can noticeably add to channel utilisation. The >40% channel
+    // utilisation gate above still applies and is the remaining backstop.
+    {
         ignoreRequest = false; // Don't ignore requests anymore
         meshtastic_User u = owner;
 

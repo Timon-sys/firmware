@@ -41,6 +41,12 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 /* Offer chance for variant-specific defines */
 #include "variant.h"
 
+// Any of these ask RadioLibInterface to publish LoRa RX/TX events so a status
+// LED (discrete GPIO or WS2812) can flash on radio activity.
+#if defined(LED_LORA) || defined(LED_LORA_RX) || defined(LED_LORA_TX) || defined(NEOPIXEL_STATUS_POWER_PIN)
+#define HAS_LORA_ACTIVITY_INDICATOR 1
+#endif
+
 // -----------------------------------------------------------------------------
 // Display feature overrides
 // -----------------------------------------------------------------------------

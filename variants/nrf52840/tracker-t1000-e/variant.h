@@ -46,10 +46,17 @@ extern "C" {
 #define PIN_3V3_EN (32 + 6)     // P1.6, Power to Sensors
 #define PIN_3V3_ACC_EN (32 + 7) // P1.7, Power to Acc
 
-#define PIN_LED1 (0 + 24) // P0.24
+#define PIN_LED1 (0 + 24) // P0.24, green
+#define PIN_LED2 (0 + 3)  // P0.03, red - undocumented by Seeed, but wired
 #define LED_POWER PIN_LED1
 #define LED_BLUE -1    // Actually green
 #define LED_STATE_ON 1 // State when LED is lit
+
+// LoRa activity: green flashes on each received packet, red while transmitting.
+// The green LED is shared with the heartbeat; the flash wins and the heartbeat
+// resumes when it expires.
+#define LED_LORA_RX PIN_LED1
+#define LED_LORA_TX PIN_LED2
 
 #define BUTTON_PIN (0 + 6) // P0.06
 #define BUTTON_ACTIVE_LOW false
