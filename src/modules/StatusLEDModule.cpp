@@ -3,6 +3,9 @@
 #include "configuration.h"
 #include "mesh/RadioInterface.h"
 #include <Arduino.h>
+#if !MESHTASTIC_EXCLUDE_EXTERNALNOTIFICATION
+#include "modules/ExternalNotificationModule.h"
+#endif
 
 /*
 StatusLEDModule manages the device's status LEDs, updating their states based on power and Bluetooth status.
@@ -322,8 +325,21 @@ int32_t StatusLEDModule::runOnce()
     }
     if (RF_pixel_color) {
         writeStatusPixel(powerPixel, RF_pixel_color, true);
-    } else {
-        writeStatusPixel(powerPixel, NEOPIXEL_STATUS_POWER_COLOR, CHARGE_LED_state == LED_STATE_ON);
+    } else if (CHARGE_LED_state == LED_STATE_ON) {
+        // Heartbeat / charge pulse wins over the notification, so the green pulse is never hidden.
+        writeStatusPixel(powerPixel, NEOPIXEL_STATUS_POWER_COLOR, true);
+    }
+#if !MESHTASTIC_EXCLUDE_EXTERNALNOTIFICATION
+    else if (externalNotificationModule && externalNotificationModule->nagging()) {
+        // Unread-message notification: absolute lowest priority - only shown in the heartbeat's
+        // off phase, so a pending message tints the idle gaps blue without overriding the pulse.
+        writeStatusPixel(powerPixel, NEOPIXEL_STATUS_POWER_NOTIFY_COLOR, true);
+        if ((uint32_t)my_interval > 250)
+            my_interval = 250; // poll faster so the pixel reverts promptly once the nag ends
+    }
+#endif
+    else {
+        writeStatusPixel(powerPixel, NEOPIXEL_STATUS_POWER_COLOR, false);
     }
 #endif
 #ifdef NEOPIXEL_STATUS_PAIRING_PIN

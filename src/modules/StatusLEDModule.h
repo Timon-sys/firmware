@@ -37,6 +37,11 @@
 #ifndef NEOPIXEL_STATUS_LORA_RX_COLOR
 #define NEOPIXEL_STATUS_LORA_RX_COLOR 0x400020 // pink @ 25%
 #endif
+// Colour held on the power pixel while an external notification (e.g. unread message) is
+// nagging. Ranks below the LoRa RX/TX flash but above the idle heartbeat.
+#ifndef NEOPIXEL_STATUS_POWER_NOTIFY_COLOR
+#define NEOPIXEL_STATUS_POWER_NOTIFY_COLOR 0x000080 // blue @ 50%
+#endif
 #endif
 
 class StatusLEDModule : private concurrency::OSThread

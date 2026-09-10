@@ -186,6 +186,7 @@ int32_t ButtonThread::runOnce()
         evt.touchY = 0;
         switch (btnEvent) {
         case BUTTON_EVENT_PRESSED: {
+            LOG_INFO("Single press!");
             // Forward single press to InputBroker (but NOT as DOWN/SELECT, just forward a "button press" event)
             evt.inputEvent = _singlePress;
             // evt.kbchar = _singlePress; // todo: fix this. Some events are kb characters rather than event types

@@ -52,6 +52,27 @@ extern "C" {
 
 #define LED_STATE_ON 1 // State when LED is litted
 
+// External APA106 status pixel on WB_IO1 / P0.17. Mirrors the onboard status LEDs
+// (heartbeat, charge, critical-battery fast-blink) and flashes green on LoRa RX / amber
+// on TX, which take priority over the status colour. Reuses StatusLEDModule's NeoPixel path.
+// NOTE: this APA106 is wired GRB (red/green came out swapped under NEO_RGB, blue fine - the
+// classic GRB signature), so NEO_GRB is correct here. The WS2811 it replaced was RGB; APA106
+// colour order varies by batch, so verify visually if the pixel is ever changed again.
+#define NEOPIXEL_STATUS_POWER_PIN 17
+#define NEOPIXEL_STATUS_TYPE (NEO_GRB + NEO_KHZ800) // APA106 (this unit): GRB order, 800 kHz
+#define NEOPIXEL_STATUS_POWER_COLOR 0x000A00   // dim green idle heartbeat
+#define NEOPIXEL_STATUS_LORA_RX_COLOR 0x00FF00 // green @ 100% - heard something over RF
+#define NEOPIXEL_STATUS_LORA_TX_COLOR 0xFF6000 // amber @ 100% - transmitting
+
+// User button on AIN1 / P0.31 - a clean analog GPIO with no external pull-up (unlike the I2C
+// pads, whose hardware pull-up pinned the pin high and defeated the pull-down). Wired as a
+// plain switch from VDD (3.3V) to AIN1: pressed -> HIGH (solid 3.3V), released -> the internal
+// pull-down holds it LOW. Active-high, no external parts.
+#define BUTTON_PIN 31
+#define BUTTON_ACTIVE_LOW false
+#define BUTTON_ACTIVE_PULLUP false
+#define BUTTON_SENSE_TYPE 0x5 // nRF input pull-down (+ sense for wake)
+
 /*
  * Analog pins
  */
